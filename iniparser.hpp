@@ -56,6 +56,7 @@
 #include <fstream>    // for std::fstream
 #include <string.h>   // for strlen()
 #include <iomanip>    // for std::setprecision
+#include <regex>
 /*---------------------------------------------------------------------------------------------------------------/
 / Defines & Settings
 /---------------------------------------------------------------------------------------------------------------*/
@@ -421,8 +422,20 @@ namespace INI
             return (_val.Data() < rgh._val.Data());
         }
 
+        inline std::string Value::expand_env(std::string text)
+        {
+            static const std::regex env_re{R"--(\$\{([^}]+)\})--"};
+            std::smatch match;
+            while (std::regex_search(text, match, env_re)) {
+                const auto value = std::getenv(match[1].str().c_str());
+                text.replace(match[0].first, match[0].second, value == nullptr ? "" : value);   // _dupenv_s  
+            }
+            return text;
+        }
+
         /// Template function to convert value to any type
-        template<class T> T Get() const { return string_to_t<T>(_val.DataObj());}
+        template<class T> T Get() const { 
+            return string_to_t<T>(expand_env(_val.DataObj());}
         void Set(const std::string& str) { _val = RefCountPtr<std::string>(str); }
         /// Template function to set value
         template<class T> void Set(const T& value) { Set(t_to_string(value)); }
@@ -976,7 +989,7 @@ namespace INI
                 if (error_code == INI_ERR_INVALID_FILENAME)
                     return std::string("Failed to open file ") + file_name + "!";
                 if (error_code == INI_ERR_PARSING_ERROR)
-                    return std::string("Parse error in file ") + file_name + " on line ¹" 
+                    return std::string("Parse error in file ") + file_name + " on line ï¿½" 
                     + t_to_string(error_line) + ": \"" + error_line + "\""; 
                 return "Unknown error!";
             }
